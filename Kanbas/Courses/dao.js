@@ -3,12 +3,30 @@ import model from "./model.js";
 export function findAllCourses() {
   return model.find();
 }
-export function findCoursesForEnrolledUser(userId) {
-  const { courses, enrollments } = Database;
-  const enrolledCourses = courses.filter((course) =>
-    enrollments.some((enrollment) => enrollment.user === userId && enrollment.course === course._id));
-  return enrolledCourses;
+export async function findCoursesForEnrolledUser(userId) {
+  try {
+    const courses = await model
+      .aggregate([
+        {
+          $lookup: {
+            from: "enrollments",
+            localField: "_id",
+            foreignField: "course",
+            as: "enrollments"
+          }
+        },
+        {
+          $match: {
+            "enrollments.user": userId
+          }
+        }
+      ]);
+    return courses;
+  } catch (error) {
+    throw new Error(`Error finding courses for user: ${error.message}`);
+  }
 }
+
 export function createCourse(course) {
   delete course._id;
   return model.create(course);
