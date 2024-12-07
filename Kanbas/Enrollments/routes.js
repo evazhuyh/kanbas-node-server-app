@@ -1,57 +1,49 @@
 import * as dao from "./dao.js";
 
-export default function EnrollmentRoutes(app) {
-  const findAllEnrollments = (req, res) => {
-    const enrollments = dao.findAllEnrollments();
-    res.json(enrollments);
-  };
-
-  const findEnrollmentsByUser = (req, res) => {
+function EnrollmentRoutes(app) {
+  // Find all courses a user is enrolled in
+  app.get("/api/users/:userId/courses", async (req, res) => {
     const { userId } = req.params;
-    const enrollments = dao.findEnrollmentsByUser(userId);
-    res.json(enrollments);
-  };
-
-  const findEnrollmentsByCourse = (req, res) => {
-    const { courseId } = req.params;
-    const enrollments = dao.findEnrollmentsByCourse(courseId);
-    res.json(enrollments);
-  };
-
-  const enrollInCourse = (req, res) => {
-    const currentUser = req.session["currentUser"];
-    if (!currentUser || currentUser.role !== "STUDENT") {
-      res.sendStatus(403);
-      return;
+    try {
+      const courses = await dao.findCoursesForUser(userId);
+      res.json(courses);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
     }
+  });
+
+  // Find all users enrolled in a course
+  app.get("/api/courses/:courseId/users", async (req, res) => {
     const { courseId } = req.params;
-    
-    // Check if already enrolled
-    const enrollment = dao.findEnrollment(currentUser._id, courseId);
-    if (enrollment) {
-      res.sendStatus(400);
-      return;
+    try {
+      const users = await dao.findUsersForCourse(courseId);
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
     }
+  });
 
-    dao.enrollUserInCourse(currentUser._id, courseId);
-    res.json({ status: "Success" });
-  };
-
-  const unenrollFromCourse = (req, res) => {
-    const currentUser = req.session["currentUser"];
-    if (!currentUser || currentUser.role !== "STUDENT") {
-      res.sendStatus(403);
-      return;
+  // Enroll user in a course
+  app.post("/api/users/:userId/courses/:courseId", async (req, res) => {
+    const { userId, courseId } = req.params;
+    try {
+      const enrollment = await dao.enrollUserInCourse(userId, courseId);
+      res.json(enrollment);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
     }
-    const { courseId } = req.params;
-    
-    dao.unenrollUserFromCourse(currentUser._id, courseId);
-    res.json({ status: "Success" });
-  };
+  });
 
-  app.post("/api/courses/:courseId/enroll", enrollInCourse);
-  app.delete("/api/courses/:courseId/enroll", unenrollFromCourse);
-  app.get("/api/users/:userId/enrollments", findEnrollmentsByUser);
-  app.get("/api/courses/:courseId/enrollments", findEnrollmentsByCourse);
-  app.get("/api/enrollments", findAllEnrollments);
+  // Unenroll user from a course
+  app.delete("/api/users/:userId/courses/:courseId", async (req, res) => {
+    const { userId, courseId } = req.params;
+    try {
+      const status = await dao.unenrollUserFromCourse(userId, courseId);
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
 }
+
+export default EnrollmentRoutes;
